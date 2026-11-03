@@ -6,3 +6,7 @@
 
 // MAC_BASE, MAC_FN, WIN_BASE, WIN_FN, UMLAUT
 #define DYNAMIC_KEYMAP_LAYER_COUNT 5
+
+// Restart the keyboard when USB re-enumerates (e.g. dual boot reboot), so the
+// OS detection starts fresh instead of mixing data from the previous OS
+#define OS_DETECTION_KEYBOARD_RESET
