@@ -16,6 +16,9 @@
 
 #include QMK_KEYBOARD_H
 #include "keychron_common.h"
+#ifdef LK_WIRELESS_ENABLE
+#    include "transport.h"
+#endif
 
 enum layers {
     MAC_BASE,
@@ -52,7 +55,7 @@ enum custom_keycodes {
 };
 
 // Host OS used to decide how special characters are typed.
-// Stored in EEPROM; HOST_MODE_AUTO uses USB based OS detection.
+// HOST_MODE_AUTO uses OS detection, which only works over USB.
 enum host_mode {
     HOST_MODE_AUTO,
     HOST_MODE_LINUX,
@@ -60,7 +63,26 @@ enum host_mode {
     HOST_MODE_WINDOWS
 };
 
-static uint8_t host_mode = HOST_MODE_AUTO;
+// One host mode per connection, stored in the 32 bit user EEPROM config.
+enum host_connection {
+    CONN_USB,
+    CONN_BLUETOOTH,
+    CONN_2G4,
+    CONN_COUNT
+};
+
+static const uint8_t default_host_modes[CONN_COUNT] = {
+    [CONN_USB]       = HOST_MODE_AUTO,
+    [CONN_BLUETOOTH] = HOST_MODE_MACOS,
+    [CONN_2G4]       = HOST_MODE_LINUX,
+};
+
+typedef union {
+    uint32_t raw;
+    uint8_t  mode[CONN_COUNT];
+} host_config_t;
+
+static host_config_t host_config;
 
 // How to produce one character on each OS (host layout: US / ABC).
 // Linux:   Ctrl+Shift+U hex input (IBus / fcitx5)
@@ -97,20 +119,38 @@ static const special_char_t special_chars[] = {
 };
 
 void eeconfig_init_user(void) {
-    host_mode = HOST_MODE_AUTO;
-    eeconfig_update_user(host_mode);
+    host_config.raw = 0;
+    memcpy(host_config.mode, default_host_modes, sizeof(default_host_modes));
+    eeconfig_update_user(host_config.raw);
 }
 
 void keyboard_post_init_user(void) {
-    host_mode = eeconfig_read_user();
-    if (host_mode > HOST_MODE_WINDOWS) {
-        host_mode = HOST_MODE_AUTO;
+    host_config.raw = eeconfig_read_user();
+    for (uint8_t i = 0; i < CONN_COUNT; i++) {
+        if (host_config.mode[i] > HOST_MODE_WINDOWS) {
+            host_config.mode[i] = default_host_modes[i];
+        }
     }
 }
 
+static uint8_t current_connection(void) {
+#ifdef LK_WIRELESS_ENABLE
+    switch (get_transport()) {
+        case TRANSPORT_BLUETOOTH:
+            return CONN_BLUETOOTH;
+        case TRANSPORT_P2P4:
+            return CONN_2G4;
+        default:
+            break;
+    }
+#endif
+    return CONN_USB;
+}
+
 static uint8_t current_host(void) {
-    if (host_mode != HOST_MODE_AUTO) {
-        return host_mode;
+    uint8_t mode = host_config.mode[current_connection()];
+    if (mode != HOST_MODE_AUTO) {
+        return mode;
     }
     switch (detected_host_os()) {
         case OS_MACOS:
@@ -169,9 +209,10 @@ static void send_special_char(const special_char_t *c, bool shifted) {
     }
 }
 
+// Sets the host mode for the currently active connection
 static void set_host_mode(uint8_t mode) {
-    host_mode = mode;
-    eeconfig_update_user(host_mode);
+    host_config.mode[current_connection()] = mode;
+    eeconfig_update_user(host_config.raw);
 }
 
 // Handle custom keycodes
