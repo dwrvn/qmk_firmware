@@ -10,3 +10,11 @@
 // Restart the keyboard when USB re-enumerates (e.g. dual boot reboot), so the
 // OS detection starts fresh instead of mixing data from the previous OS
 #define OS_DETECTION_KEYBOARD_RESET
+
+// Lighting defaults, restored with Fn + top right key: dark until typing,
+// red to purple ripples (values read from the keyboard via VIA)
+#define RGB_MATRIX_DEFAULT_MODE RGB_MATRIX_SOLID_REACTIVE_MULTINEXUS
+#define RGB_MATRIX_DEFAULT_HUE 0
+#define RGB_MATRIX_DEFAULT_SAT 255
+#define RGB_MATRIX_DEFAULT_VAL RGB_MATRIX_MAXIMUM_BRIGHTNESS
+#define RGB_MATRIX_DEFAULT_SPD 127
