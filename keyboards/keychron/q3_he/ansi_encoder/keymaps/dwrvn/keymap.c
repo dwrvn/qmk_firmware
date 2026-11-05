@@ -164,6 +164,19 @@ static uint8_t current_host(void) {
     }
 }
 
+// Start OS detection from scratch when the host resets an already configured
+// keyboard (dual boot reboot, UEFI handing over to the OS). Otherwise the USB
+// setup data of the previous OS is mixed into the guess. Done without
+// OS_DETECTION_KEYBOARD_RESET, whose keyboard restart stalled enumeration.
+void notify_usb_device_state_change_user(struct usb_device_state usb_device_state) {
+    static usb_configure_state_t last_state = USB_DEVICE_STATE_NO_INIT;
+
+    if (usb_device_state.configure_state == USB_DEVICE_STATE_INIT && last_state >= USB_DEVICE_STATE_CONFIGURED) {
+        erase_wlength_data();
+    }
+    last_state = usb_device_state.configure_state;
+}
+
 static uint8_t numpad_digit(uint8_t digit) {
     return digit == 0 ? KC_KP_0 : KC_KP_1 + digit - 1;
 }
